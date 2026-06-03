@@ -1,0 +1,1 @@
+pyinstaller --clean --noconfirm "学术稿件伦理审查工具.spec"

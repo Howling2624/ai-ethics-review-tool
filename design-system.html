@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学术稿件伦理审查工具 - 设计系统</title>
+    <style>
+        :root {
+            --ink: #e9fff8;
+            --muted: #83a79e;
+            --line: rgba(88, 255, 221, 0.22);
+            --paper: #06100e;
+            --panel: rgba(8, 25, 23, 0.86);
+            --field: rgba(3, 15, 13, 0.82);
+            --green: #36e7ba;
+            --green-dark: #0da982;
+            --amber: #ffc85b;
+            --red: #ff6b70;
+            --blue: #6bbcff;
+            --shadow: 0 22px 64px rgba(0, 0, 0, 0.42), 0 0 34px rgba(54, 231, 186, 0.08);
+            --radius: 8px;
+            --font-ui: "Bahnschrift", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+            --font-code: "Cascadia Mono", Consolas, "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            min-width: 320px;
+            background: var(--paper);
+            scroll-behavior: smooth;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            color: var(--ink);
+            font-family: var(--font-ui);
+            background:
+                linear-gradient(90deg, rgba(70, 255, 218, 0.07) 1px, transparent 1px),
+                linear-gradient(0deg, rgba(70, 255, 218, 0.05) 1px, transparent 1px),
+                radial-gradient(circle at 10% 12%, rgba(54, 231, 186, 0.15), transparent 34%),
+                radial-gradient(circle at 84% 18%, rgba(255, 200, 91, 0.12), transparent 28%),
+                var(--paper);
+            background-size: 30px 30px, 30px 30px, auto, auto, auto;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(120deg, rgba(54, 231, 186, 0.12), transparent 26%, rgba(107, 188, 255, 0.08) 54%, transparent 78%),
+                repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 4px);
+            opacity: 0.72;
+            mix-blend-mode: screen;
+        }
+
+        button,
+        input,
+        textarea {
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+        }
+
+        .shell {
+            position: relative;
+            z-index: 1;
+            width: min(1360px, calc(100% - 40px));
+            margin: 0 auto;
+            padding: 34px 0 44px;
+        }
+
+        .topbar {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 24px;
+            align-items: end;
+            padding: 10px 0 24px;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--green);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            text-shadow: 0 0 18px rgba(54, 231, 186, 0.62);
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin-top: 0;
+        }
+
+        h1 {
+            margin-bottom: 12px;
+            font-size: clamp(30px, 3.8vw, 52px);
+            line-height: 1.12;
+            letter-spacing: 0;
+            text-shadow: 0 0 26px rgba(54, 231, 186, 0.18);
+        }
+
+        .subtitle {
+            max-width: 760px;
+            margin-bottom: 0;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .meta {
+            display: grid;
+            gap: 8px;
+            min-width: 240px;
+            color: var(--muted);
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .meta strong {
+            color: var(--ink);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 236px minmax(0, 1fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .nav {
+            position: sticky;
+            top: 18px;
+            display: grid;
+            gap: 8px;
+            padding: 14px;
+        }
+
+        .nav a {
+            display: block;
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .nav a:hover {
+            background: rgba(54, 231, 186, 0.12);
+            color: var(--ink);
+        }
+
+        .stack {
+            display: grid;
+            gap: 18px;
+            min-width: 0;
+        }
+
+        .panel {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: linear-gradient(180deg, rgba(10, 30, 27, 0.92), rgba(5, 18, 16, 0.88));
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(14px);
+        }
+
+        .panel::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border-radius: inherit;
+            background:
+                linear-gradient(90deg, rgba(54, 231, 186, 0.24), transparent 24%, transparent 76%, rgba(107, 188, 255, 0.16)),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 42%);
+            opacity: 0.55;
+        }
+
+        .panel > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--line);
+            background: rgba(5, 19, 17, 0.78);
+        }
+
+        .panel-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-note {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .section-body {
+            padding: 20px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .swatches {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .swatch {
+            min-height: 132px;
+            border: 1px solid rgba(88, 255, 221, 0.22);
+            border-radius: 7px;
+            padding: 12px;
+            background: rgba(2, 12, 11, 0.58);
+        }
+
+        .chip-color {
+            height: 48px;
+            margin-bottom: 12px;
+            border-radius: 6px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+
+        .swatch strong,
+        .token strong {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--ink);
+            font-size: 13px;
+        }
+
+        .swatch code,
+        .token code {
+            color: var(--muted);
+            font-family: var(--font-code);
+            font-size: 12px;
+        }
+
+        .token {
+            min-height: 88px;
+            border: 1px solid rgba(88, 255, 221, 0.18);
+            border-radius: 7px;
+            padding: 14px;
+            background: rgba(2, 12, 11, 0.5);
+        }
+
+        .type-sample {
+            display: grid;
+            gap: 14px;
+        }
+
+        .type-row {
+            border-bottom: 1px solid rgba(88, 255, 221, 0.13);
+            padding-bottom: 14px;
+        }
+
+        .type-row:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .type-row .label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--muted);
+            font-size: 12px;
+            font-family: var(--font-code);
+        }
+
+        .display {
+            font-size: clamp(32px, 4vw, 50px);
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .title-lg {
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1.24;
+        }
+
+        .body-copy {
+            max-width: 680px;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .mono {
+            color: #bffbee;
+            font-family: var(--font-code);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .mode-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            max-width: 430px;
+            margin-bottom: 16px;
+            padding: 4px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: rgba(2, 12, 11, 0.75);
+        }
+
+        .mode-tab {
+            min-height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            background: transparent;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .mode-tab.active {
+            background: linear-gradient(180deg, rgba(54, 231, 186, 0.24), rgba(54, 231, 186, 0.08));
+            color: var(--ink);
+            box-shadow: inset 0 0 0 1px rgba(54, 231, 186, 0.35), 0 0 22px rgba(54, 231, 186, 0.14);
+        }
+
+        .field {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 8px;
+            color: #d9fff5;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .hint {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            border: 1px solid rgba(88, 255, 221, 0.24);
+            border-radius: 6px;
+            outline: 0;
+            background: var(--field);
+            color: var(--ink);
+            transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+        }
+
+        input {
+            height: 44px;
+            padding: 0 13px;
+        }
+
+        textarea {
+            min-height: 124px;
+            padding: 13px;
+            resize: vertical;
+            line-height: 1.6;
+            font-family: var(--font-code);
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: rgba(191, 251, 238, 0.45);
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--green);
+            background: rgba(6, 24, 21, 0.95);
+            box-shadow: 0 0 0 3px rgba(54, 231, 186, 0.13), 0 0 24px rgba(54, 231, 186, 0.12);
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 42px;
+            border-radius: 6px;
+            padding: 0 15px;
+            cursor: pointer;
+            color: var(--ink);
+            font-size: 14px;
+            font-weight: 800;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease, border-color 150ms ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.62;
+            transform: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #23d9ad, #6bbcff);
+            color: #04100e;
+            box-shadow: 0 0 28px rgba(54, 231, 186, 0.24);
+        }
+
+        .btn-secondary {
+            border: 1px solid rgba(88, 255, 221, 0.28);
+            background: linear-gradient(180deg, rgba(14, 43, 39, 0.88), rgba(5, 18, 16, 0.72));
+            color: var(--ink);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 10px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-compact {
+            min-height: 38px;
+            border-radius: 999px;
+            padding: 0 13px;
+            font-size: 12px;
+            letter-spacing: 0.02em;
+        }
+
+        .file-drop {
+            position: relative;
+            display: grid;
+            place-items: center;
+            justify-content: center;
+            align-content: center;
+            min-height: 164px;
+            border: 1px dashed rgba(88, 255, 221, 0.45);
+            border-radius: 8px;
+            background: var(--field);
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .file-drop:hover {
+            border-color: var(--green);
+            background: rgba(8, 31, 27, 0.9);
+            box-shadow: 0 0 0 3px rgba(54, 231, 186, 0.12), inset 0 0 36px rgba(54, 231, 186, 0.06);
+        }
+
+        .file-drop strong {
+            display: block;
+            margin-bottom: 7px;
+            color: var(--ink);
+            font-size: 15px;
+        }
+
+        .file-drop span {
+            display: block;
+            max-width: 260px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .stat {
+            min-height: 102px;
+            border: 1px solid rgba(88, 255, 221, 0.22);
+            border-radius: 7px;
+            padding: 14px;
+            background: linear-gradient(180deg, rgba(10, 34, 31, 0.72), rgba(2, 14, 12, 0.58));
+            box-shadow: inset 0 0 24px rgba(54, 231, 186, 0.035);
+        }
+
+        .stat strong {
+            display: block;
+            min-height: 34px;
+            color: var(--green);
+            font-size: 30px;
+            line-height: 1;
+            text-shadow: 0 0 18px rgba(54, 231, 186, 0.38);
+        }
+
+        .stat span {
+            display: block;
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .meter {
+            height: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(88, 255, 221, 0.12);
+            border-radius: 999px;
+            background: rgba(2, 12, 11, 0.86);
+        }
+
+        .meter-bar {
+            width: 72%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--green), var(--blue), var(--amber));
+            box-shadow: 0 0 18px rgba(54, 231, 186, 0.42);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 24px;
+            border-radius: 999px;
+            padding: 4px 9px;
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .badge.ok {
+            background: rgba(54, 231, 186, 0.18);
+            color: #92ffe3;
+            box-shadow: inset 0 0 0 1px rgba(54, 231, 186, 0.25);
+        }
+
+        .badge.warn {
+            background: rgba(255, 200, 91, 0.18);
+            color: #ffe1a0;
+            box-shadow: inset 0 0 0 1px rgba(255, 200, 91, 0.25);
+        }
+
+        .badge.err {
+            background: rgba(255, 107, 112, 0.18);
+            color: #ffafb2;
+            box-shadow: inset 0 0 0 1px rgba(255, 107, 112, 0.28);
+        }
+
+        .badge.neutral {
+            background: rgba(131, 167, 158, 0.14);
+            color: #b8d2ca;
+            box-shadow: inset 0 0 0 1px rgba(131, 167, 158, 0.2);
+        }
+
+        .table-wrap {
+            overflow: auto;
+            max-height: 360px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            border-bottom: 1px solid rgba(88, 255, 221, 0.13);
+            padding: 10px 8px;
+            text-align: left;
+            vertical-align: top;
+            font-size: 12px;
+            line-height: 1.45;
+            word-break: break-word;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: rgba(5, 22, 20, 0.96);
+            color: #bffbee;
+            font-weight: 900;
+        }
+
+        tbody tr {
+            background: rgba(7, 22, 20, 0.64);
+        }
+
+        tbody tr:hover {
+            background: rgba(19, 56, 50, 0.68);
+        }
+
+        .log-box {
+            height: 132px;
+            overflow: auto;
+            padding: 10px 14px;
+            border-radius: 0 0 var(--radius) var(--radius);
+            border-top: 1px solid var(--line);
+            background: rgba(2, 12, 11, 0.72);
+            color: #bffbee;
+            font: 12px/1.55 var(--font-code);
+        }
+
+        .log {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(88, 255, 221, 0.11);
+        }
+
+        .log.success {
+            color: var(--green-dark);
+        }
+
+        .log.error {
+            color: var(--red);
+        }
+
+        .log.processing {
+            color: var(--amber);
+        }
+
+        .guideline-list {
+            display: grid;
+            gap: 10px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .guideline-list li {
+            border-left: 3px solid rgba(54, 231, 186, 0.55);
+            padding: 8px 0 8px 12px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .guideline-list strong {
+            color: var(--ink);
+        }
+
+        .sample-shell {
+            display: grid;
+            grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
+            gap: 14px;
+            align-items: start;
+        }
+
+        .mini-panel {
+            border: 1px solid rgba(88, 255, 221, 0.22);
+            border-radius: 7px;
+            background: rgba(2, 12, 11, 0.46);
+        }
+
+        .mini-head {
+            padding: 14px;
+            border-bottom: 1px solid rgba(88, 255, 221, 0.16);
+            color: var(--ink);
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .mini-body {
+            padding: 14px;
+        }
+
+        @media (max-width: 1080px) {
+            .topbar,
+            .layout,
+            .sample-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .nav {
+                position: static;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .meta {
+                text-align: left;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .shell {
+                width: min(100% - 24px, 1360px);
+                padding-top: 22px;
+            }
+
+            .panel-head,
+            .section-body {
+                padding: 16px;
+            }
+
+            .grid-2,
+            .grid-3,
+            .swatches,
+            .overview-grid,
+            .nav {
+                grid-template-columns: 1fr;
+            }
+
+            .actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">Ethics Review Console</p>
+                <h1>设计系统</h1>
+                <p class="subtitle">基于当前项目代码整理：用于学术稿件伦理审查工具的视觉令牌、组件规范、状态语言和典型页面组合。整体气质应保持“可信、冷静、可追踪”，适合长时间处理审查任务。</p>
+            </div>
+            <div class="meta">
+                <span>来源：<strong>templates/index.html</strong></span>
+                <span>框架：<strong>Flask + 原生 HTML/CSS/JS</strong></span>
+                <span>圆角基准：<strong>8px</strong></span>
+            </div>
+        </header>
+
+        <div class="layout">
+            <nav class="panel nav" aria-label="设计系统目录">
+                <a href="#principles">设计原则</a>
+                <a href="#tokens">设计令牌</a>
+                <a href="#typography">字体层级</a>
+                <a href="#components">核心组件</a>
+                <a href="#states">状态语言</a>
+                <a href="#composition">页面组合</a>
+            </nav>
+
+            <div class="stack">
+                <section class="panel" id="principles">
+                    <div class="panel-head">
+                        <div>
+                            <h2 class="panel-title">设计原则</h2>
+                            <p class="panel-note">从现有界面抽象出的产品气质和使用规则。</p>
+                        </div>
+                    </div>
+                    <div class="section-body grid-2">
+                        <ul class="guideline-list">
+                            <li><strong>任务优先。</strong>首屏直接进入审查工作台，避免营销式介绍，重要操作固定在左侧或顶部。</li>
+                            <li><strong>风险可见。</strong>冲突、警示、失败必须用稳定色彩和徽章表达，不依赖长文本。</li>
+                            <li><strong>密度克制。</strong>表格、日志、统计卡保持紧凑，留足行高与边界线用于扫描。</li>
+                        </ul>
+                        <ul class="guideline-list">
+                            <li><strong>科技感来自细节。</strong>网格、发光和透明面板只作为背景语气，不能干扰阅读。</li>
+                            <li><strong>本地工具感。</strong>按钮、输入框、文件上传和进度反馈要明确、朴素、可预测。</li>
+                            <li><strong>明暗主题兼容。</strong>当前系统以暗色为主，但令牌已支持浅色主题扩展。</li>
+                        </ul>
+                    </div>
+                </section>
+
+                <section class="panel" id="tokens">
+                    <div class="panel-head">
+                        <div>
+                            <h2 class="panel-title">设计令牌</h2>
+                            <p class="panel-note">直接来自项目 CSS 变量，可作为后续重构或组件化的命名基础。</p>
+                        </div>
+                    </div>
+                    <div class="section-body">
+                        <div class="swatches">
+                            <div class="swatch"><div class="chip-color" style="background:#06100e"></div><strong>Paper</strong><code>--paper #06100e</code></div>
+                            <div class="swatch"><div class="chip-color" style="background:#e9fff8"></div><strong>Ink</strong><code>--ink #e9fff8</code></div>
+                            <div class="swatch"><div class="chip-color" style="background:#83a79e"></div><strong>Muted</strong><code>--muted #83a79e</code></div>
+                            <div class="swatch"><div class="chip-color" style="background:#36e7ba"></div><strong>Primary</strong><code>--green #36e7ba</code></div>
+                            <div class="swatch"><div class="chip-color" style="background:#6bbcff"></div><strong>Info</strong><code>--blue #6bbcff</code></div>
+                            <div class="swatch"><div class="chip-color" style="background:#ffc85b"></div><strong>Warning</strong><code>--amber #ffc85b</code></div>
+                            <div class="swatch"><div class="chip-color" style="background:#ff6b70"></div><strong>Error</strong><code>--red #ff6b70</code></div>
+                            <div class="swatch"><div class="chip-color" style="background:rgba(88,255,221,.22)"></div><strong>Line</strong><code>--line rgba(...,.22)</code></div>
+                            <div class="swatch"><div class="chip-color" style="background:rgba(3,15,13,.82)"></div><strong>Field</strong><code>--field rgba(...,.82)</code></div>
+                            <div class="swatch"><div class="chip-color" style="background:linear-gradient(135deg,#23d9ad,#6bbcff)"></div><strong>Action</strong><code>primary gradient</code></div>
+                        </div>
+
+                        <div class="grid-3" style="margin-top:14px">
+                            <div class="token"><strong>Radius</strong><code>--radius: 8px; controls: 6px; cards: 7px</code></div>
+                            <div class="token"><strong>Shadow</strong><code>0 22px 64px rgba(0,0,0,.42)</code></div>
+                            <div class="token"><strong>Grid</strong><code>30px background grid, subtle cyan opacity</code></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel" id="typography">
+                    <div class="panel-head">
+                        <div>
+                            <h2 class="panel-title">字体层级</h2>
+                            <p class="panel-note">当前项目使用 Bahnschrift + 中文系统字体，代码和日志使用 Cascadia Mono。</p>
+                        </div>
+                    </div>
+                    <div class="section-body type-sample">
+                        <div class="type-row">
+                            <span class="label">Display / 30-52px / weight 800</span>
+                            <div class="display">学术稿件伦理审查工具</div>
+                        </div>
+                        <div class="type-row">
+                            <span class="label">Panel Title / 16px / weight 800</span>
+                            <div class="title-lg">新建审查任务与运行概览</div>
+                        </div>
+                        <div class="type-row">
+                            <span class="label">Body / 15px / line-height 1.7</span>
+                            <p class="body-copy">批量检查 OJS 文章页面与 PDF 中的 Ethical Statement，自动下载原文、生成分析报告，并汇总冲突风险。</p>
+                        </div>
+                        <div class="type-row">
+                            <span class="label">Mono / 12px / line-height 1.6</span>
+                            <div class="mono">[2026-05-12 10:24:16] PDF 下载成功，开始分析伦理声明字段。</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel" id="components">
+                    <div class="panel-head">
+                        <div>
+                            <h2 class="panel-title">核心组件</h2>
+                            <p class="panel-note">覆盖当前界面中的表单、按钮、上传、统计、徽章、表格和日志。</p>
+                        </div>
+                    </div>
+                    <div class="section-body stack">
+                        <div class="grid-2">
+                            <div class="mini-panel">
+                                <div class="mini-head">表单与操作</div>
+                                <div class="mini-body">
+                                    <div class="mode-tabs" role="tablist">
+                                        <button class="mode-tab active" type="button">稿件号检查</button>
+                                        <button class="mode-tab" type="button">上传文件检查</button>
+                                    </div>
+                                    <div class="field">
+                                        <label for="journal">编辑部缩写 <span class="hint">如 JCCE / AIA</span></label>
+                                        <input id="journal" type="text" value="JCCE">
+                                    </div>
+                                    <div class="field">
+                                        <label for="articleIds">稿件号 <span class="hint">2 篇</span></label>
+                                        <textarea id="articleIds">6503&#10;8708</textarea>
+                                    </div>
+                                    <div class="actions">
+                                        <button class="btn btn-primary" type="button">开始处理</button>
+                                        <button class="btn btn-secondary" type="button">下载 CSV</button>
+                                        <button class="btn btn-secondary btn-compact" type="button">配置 API Key</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mini-panel">
+                                <div class="mini-head">上传与状态</div>
+                                <div class="mini-body">
+                                    <label class="file-drop">
+                                        <strong>拖拽文件到这里</strong>
+                                        <span>支持 PDF、DOCX、DOC，可一次上传多个文件。</span>
+                                    </label>
+                                    <div style="height:14px"></div>
+                                    <div class="actions">
+                                        <span class="badge ok">无冲突</span>
+                                        <span class="badge warn">涉及伦理</span>
+                                        <span class="badge err">冲突风险</span>
+                                        <span class="badge neutral">无法判断</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mini-panel">
+                            <div class="mini-head">统计与进度</div>
+                            <div class="mini-body">
+                                <div class="overview-grid">
+                                    <div class="stat"><strong>12</strong><span>任务总数</span></div>
+                                    <div class="stat"><strong>9</strong><span>已完成</span></div>
+                                    <div class="stat"><strong>2</strong><span>冲突风险</span></div>
+                                    <div class="stat"><strong>运行中</strong><span>任务状态</span></div>
+                                </div>
+                                <div style="height:14px"></div>
+                                <div class="meter" aria-hidden="true"><div class="meter-bar"></div></div>
+                            </div>
+                        </div>
+
+                        <div class="mini-panel">
+                            <div class="mini-head">结果表格</div>
+                            <div class="table-wrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>稿件号</th>
+                                            <th>网页 ES</th>
+                                            <th>PDF ES</th>
+                                            <th>伦理需求</th>
+                                            <th>冲突</th>
+                                            <th>原因</th>
+                                            <th>报告</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>6503</td>
+                                            <td><span class="badge ok">存在</span></td>
+                                            <td><span class="badge ok">存在</span></td>
+                                            <td><span class="badge warn">涉及</span></td>
+                                            <td><span class="badge ok">无冲突</span></td>
+                                            <td>声明完整，PDF 与网页描述一致。</td>
+                                            <td>查看</td>
+                                        </tr>
+                                        <tr>
+                                            <td>8708</td>
+                                            <td><span class="badge neutral">未找到</span></td>
+                                            <td><span class="badge ok">存在</span></td>
+                                            <td><span class="badge warn">涉及</span></td>
+                                            <td><span class="badge err">冲突</span></td>
+                                            <td>网页缺少伦理声明，PDF 中包含人体试验描述。</td>
+                                            <td>查看</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="mini-panel">
+                            <div class="mini-head">运行日志</div>
+                            <div class="log-box">
+                                <div class="log processing">[10:24:12] 任务已提交，等待服务器返回日志。</div>
+                                <div class="log success">[10:24:15] PDF 下载成功：JCCE_6503.pdf</div>
+                                <div class="log error">[10:24:22] 8708 网页未检测到 Ethical Statement。</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel" id="states">
+                    <div class="panel-head">
+                        <div>
+                            <h2 class="panel-title">状态语言</h2>
+                            <p class="panel-note">建议保持颜色与语义的一一对应，降低误读成本。</p>
+                        </div>
+                    </div>
+                    <div class="section-body grid-3">
+                        <div class="token"><strong>成功 / 合规</strong><code>green: 下载成功、无冲突、已完成</code></div>
+                        <div class="token"><strong>处理中 / 警示</strong><code>amber: 运行中、涉及伦理、等待中</code></div>
+                        <div class="token"><strong>失败 / 风险</strong><code>red: 冲突、下载失败、分析错误</code></div>
+                        <div class="token"><strong>信息 / 链接</strong><code>blue: 报告链接、辅助高亮</code></div>
+                        <div class="token"><strong>未知 / 空态</strong><code>muted: 暂无结果、无法判断</code></div>
+                        <div class="token"><strong>焦点 / 输入</strong><code>green glow: focus ring, active tab</code></div>
+                    </div>
+                </section>
+
+                <section class="panel" id="composition">
+                    <div class="panel-head">
+                        <div>
+                            <h2 class="panel-title">页面组合</h2>
+                            <p class="panel-note">当前应用的推荐布局：左侧命令面板，右侧运行反馈与结果表。</p>
+                        </div>
+                    </div>
+                    <div class="section-body">
+                        <div class="sample-shell">
+                            <div class="mini-panel">
+                                <div class="mini-head">左侧：任务输入</div>
+                                <div class="mini-body">
+                                    <ul class="guideline-list">
+                                        <li>模式切换放在表单顶部。</li>
+                                        <li>主按钮与导出按钮并排，移动端改为纵向。</li>
+                                        <li>命令面板可在桌面端 sticky，保持可操作。</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="mini-panel">
+                                <div class="mini-head">右侧：反馈与证据</div>
+                                <div class="mini-body">
+                                    <ul class="guideline-list">
+                                        <li>运行概览先给总数、完成数、风险数和状态。</li>
+                                        <li>结果表格紧随其后，支持搜索和导出。</li>
+                                        <li>日志作为可追踪证据，不抢占主要结果区。</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
