@@ -103,22 +103,3 @@ Copy-Item config.example.json config.json
 ```powershell
 pyinstaller --clean --noconfirm "学术稿件伦理审查工具.spec"
 ```
-
-打包前建议清理旧产物：
-
-```powershell
-Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
-```
-
-`work_temp`、`pdfs`、`reports`、`build`、`dist` 等目录属于运行或打包产物，不应提交到公开仓库。
-
-## 安全说明
-
-- 仓库不包含真实 API Key。
-- 仓库不包含具体出版社或内部 OJS 站点地址。
-- `config.json`、`.env`、`api_key.txt`、打包产物和运行结果均已加入 `.gitignore`。
-- 如果曾经在本地使用过真实 Key，建议在服务商控制台轮换或删除旧 Key。
-
-## 简历描述参考
-
-AI 学术稿件伦理声明审查工具：基于 Flask 构建本地批量审查平台，集成 PDF/Word 文本解析、OJS 页面抓取、规则关键词筛查与 DeepSeek AI 判断，自动生成 HTML 报告和 CSV 汇总，提升编辑流程中 Ethical Statement 风险识别效率。
